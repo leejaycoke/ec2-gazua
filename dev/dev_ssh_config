@@ -1,0 +1,23 @@
+#gz:group=test1
+
+Host host1
+    HostName 54.250.243.237
+    User manager
+    IdentityFile ~/.ssh/id_rsa_leejay
+
+Host host2
+    HostName 54.250.243.237
+    User manager
+    IdentityFile ~/.ssh/id_rsa_leejay
+
+#gz:group=test2
+
+Host host3
+    HostName 54.250.243.237
+    User manager
+    IdentityFile ~/.ssh/id_rsa_leejay
+
+Host host4
+    HostName 54.250.243.237
+    User manager
+    IdentityFile ~/.ssh/id_rsa_leejay

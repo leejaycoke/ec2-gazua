@@ -1,0 +1,33 @@
+name: major
+
+credential:
+    aws_access_key_id:
+    aws_secret_access_key: 
+    region: 'ap-northeast-2'
+
+ssh-path: ~/.ssh
+
+tag:
+    group: Group
+    name: Name
+
+ip-address:
+    default: private
+    group:
+      live-company-group: private
+    name:
+      private-my-server: public
+
+identity-file:
+    default: auto
+    group:
+        tag-group: ~/.ssh/test1
+    name:
+        tag-name: ~/.ssh/test2
+
+user:
+    default: ec2-user
+    group:
+        tag-group: centos
+    name:
+        tag-name: leejuhyun

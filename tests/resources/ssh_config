@@ -1,0 +1,4 @@
+#gz:group=a
+Host hostname1
+    HostName 123.123.123.1
+    User host-user1

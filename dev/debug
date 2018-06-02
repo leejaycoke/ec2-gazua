@@ -1,0 +1,20 @@
+#!/bin/bash
+
+cwd="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+function start_config_test() {
+    cp ~/.ssh/config $cwd/config.bak
+    chmod 600 $cwd/dev_ssh_config
+    cp $cwd/dev_ssh_config ~/.ssh/config
+}
+
+function stop_config_test() {
+    chmod 600 $cwd/config.bak
+    mv $cwd/config.bak ~/.ssh/config
+}
+
+if [ "$1" == "--start=config" ]; then
+    start_config_test
+elif [ "$1" == "--stop=config" ]; then
+    stop_config_test
+fi
