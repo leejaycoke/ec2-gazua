@@ -22,6 +22,21 @@ from urwid import LineBox
 from urwid import ListBox
 
 
+class Footer(object):
+
+    def __init__(self, markup):
+        self.widget = Text(markup)
+
+    def set_text(self, markup):
+        self.widget.set_text(markup)
+
+    def get_widget(self):
+        return AttrMap(self.widget, 'footer')
+
+
+footer = Footer('EC2 Gazua~!!')
+
+
 class AWSView(object):
     names = []
     widgets = []
@@ -167,7 +182,8 @@ class InstanceView(object):
             (25, SSHCheckBox(
                 instance['name'][:21],
                 instance['is_running'],
-                self.run_tmux,
+                self._run_tmux,
+                self.not_checkable_callback,
                 on_state_change=self.instance_check_changed,
                 user_data=instance)),
             (15, ClippedText(instance['private_ip'])),
@@ -180,14 +196,15 @@ class InstanceView(object):
         columns_widget = Columns(widgets, dividechars=1)
         return AttrMap(columns_widget, None, 'instance_focus')
 
+    def not_checkable_callback(self, instance_name):
+        footer.set_text('warning: the instance %s is not running' % instance_name)
+
     def instance_check_changed(self, widget, state, instance):
+        log.info("instance_check_changed")
         if state:
             self.selected_instances.append(instance)
         else:
             self.selected_instances.remove(instance)
-
-    def on_changed(self):
-        log.info('on_i_changed')
 
     def get_walker(self):
         return self.walker
@@ -195,8 +212,16 @@ class InstanceView(object):
     def get_widget(self):
         return self.listbox
 
-    def run_tmux(self):
-        tmux.run(self.selected_instances)
+    def _run_tmux(self):
+        tmux_params = [self._create_tmux_param(i) for i in self.selected_instances]
+        tmux.run(tmux_params)
+
+    def _create_tmux_param(self, instance):
+        return {
+            'ip_address': instance['connect_ip'],
+            'key_file': instance['key_file'],
+            'user': instance['user']
+        }
 
 
 class Gazua(object):
@@ -291,12 +316,13 @@ title_header = AttrMap(Columns([
     (Text('key', wrap='clip')),
 ]), 'title_header')
 
-body_frame = Frame(body, header=title_header)
+body_frame = Frame(body, header=title_header, footer=footer.get_widget())
 wrapper = GazuaFrame(body_frame, arrow_callback=on_arrow_pressed)
 
 palette = [
     ('header', 'white', 'dark red', 'bold'),
-    ('title_header', 'black', 'light gray', 'bold'),
+    ('footer', 'white', 'light gray', 'bold'),
+    ('title_header', 'black', 'dark cyan', 'bold'),
     ('footer', 'black', 'light gray'),
     ('group', 'black', 'yellow', 'bold'),
     ('host', 'black', 'dark green'),
@@ -305,6 +331,11 @@ palette = [
     ('instance_focus', 'black', 'yellow'),
 ]
 
-loop = MainLoop(wrapper, palette, handle_mouse=False)
-# unhandled_input=key_pressed)
+
+def key_pressed(key):
+    if key == 'esc':
+        raise urwid.ExitMainLoop()
+
+
+loop = MainLoop(wrapper, palette, handle_mouse=False, unhandled_input=key_pressed)
 loop.run()

@@ -7,6 +7,7 @@ from urwid import Frame
 from urwid import Edit
 from urwid import AttrMap
 from urwid import SimpleFocusListWalker
+from urwid import SelectableIcon
 from urwid import SimpleListWalker
 
 from logger import log
@@ -38,19 +39,21 @@ class SelectableText(Text):
 
 
 class SSHCheckBox(CheckBox):
+    not_checkable_callback = None
 
-    def __init__(self, name, checkable, enter_callback, *args, **kwargs):
+    def __init__(self, label, checkable, enter_callback, not_checkable_callback, *args, **kwargs):
         self.checkable = checkable
         self.enter_callback = enter_callback
-        super(SSHCheckBox, self).__init__(name, *args, **kwargs)
-
-    def add_instance(self, **kwargs):
-        pass
+        self.not_checkable_callback = not_checkable_callback
+        super(SSHCheckBox, self).__init__(label, *args, **kwargs)
 
     def keypress(self, size, key):
         if key == 'enter':
             self.enter_callback()
             return
+        elif key == ' ':
+            if not self.checkable and self.not_checkable_callback:
+                self.not_checkable_callback(self.label)
 
         return super(SSHCheckBox, self).keypress(size, key)
 

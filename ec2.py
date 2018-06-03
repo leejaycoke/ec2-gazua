@@ -2,9 +2,11 @@
 
 
 from os import listdir
+from os.path import isfile
 from os.path import dirname
 from os.path import join
 from os.path import realpath
+from os.path import expanduser
 
 import boto3
 import yaml
@@ -50,7 +52,14 @@ def get_describe_instances(config):
     return client.describe_instances()
 
 
-def clear_instance(i, group_tag, name_tag):
+def get_key_file(filename):
+    if isfile(filename):
+        return filename
+    elif isfile(filename + '.pem'):
+        return filename + '.pem'
+
+
+def clear_instance(i, group_tag, name_tag, ip, ssh_path, user):
     tags = {t['Key']: t['Value'] for t in i.get('Tags', [])}
 
     instance = {
@@ -63,7 +72,14 @@ def clear_instance(i, group_tag, name_tag):
         'public_ip': i.get('PublicIpAddress', '-'),
         'is_running': i['State']['Name'] == 'running',
         'tags': tags,
+        'user': user
     }
+
+    instance['connect_ip'] = instance['private_ip'] if ip == 'private' \
+        else instance['public_ip']
+
+    key_file = get_key_file(ssh_path + '/' + instance['key_name'])
+    instance['key_file'] = key_file
 
     return instance
 
@@ -82,9 +98,12 @@ def get_instances():
             continue
 
         cleared_instances = [clear_instance(i['Instances'][0],
-                                           config['tag']['group'],
-                                           config['tag']['name']) \
-                            for i in resp['Reservations']]
+                                            config['tag']['group'],
+                                            config['tag']['name'],
+                                            config['ip-address']['default'],
+                                            expanduser(config['ssh-path']),
+                                            config['user']['default']) \
+                             for i in resp['Reservations']]
 
         for i in cleared_instances:
             group = i['group']
