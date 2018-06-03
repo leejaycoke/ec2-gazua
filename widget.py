@@ -12,14 +12,23 @@ from urwid import SimpleListWalker
 from logger import log
 
 
+class ClippedText(Text):
+
+    def __init__(self, *args, **kwargs):
+        super(ClippedText, self).__init__(*args, wrap='clip', **kwargs)
+
+
 class SearchEdit(AttrMap):
 
     def __init__(self):
-        edit = Edit('search: ')
+        edit = Edit('Search: ')
         super(SearchEdit, self).__init__(edit, 'header')
 
 
 class SelectableText(Text):
+
+    def __init__(self, markup, *args, **kwargs):
+        super(SelectableText, self).__init__(markup, wrap='clip')
 
     def selectable(self):
         return True
@@ -30,9 +39,10 @@ class SelectableText(Text):
 
 class SSHCheckBox(CheckBox):
 
-    def __init__(self, enter_callback, *args, **kwargs):
+    def __init__(self, name, checkable, enter_callback, *args, **kwargs):
+        self.checkable = checkable
         self.enter_callback = enter_callback
-        super(SSHCheckBox, self).__init__(*args, **kwargs)
+        super(SSHCheckBox, self).__init__(name, *args, **kwargs)
 
     def add_instance(self, **kwargs):
         pass
@@ -44,15 +54,19 @@ class SSHCheckBox(CheckBox):
 
         return super(SSHCheckBox, self).keypress(size, key)
 
+    def set_state(self, state, do_callback=True):
+        if not self.checkable:
+            return super(SSHCheckBox, self).set_state(False, False)
+        return super(SSHCheckBox, self).set_state(state, do_callback)
+
 
 class GazuaFrame(Frame):
-
     column_pos = 0
 
     def __init__(self, *args, **kwargs):
-        self.search_edit = SearchEdit()
+        self.search_edit = Edit('Search: ')
         self.arrow_callback = kwargs['arrow_callback']
-        super(GazuaFrame, self).__init__(*args, header=self.search_edit)
+        super(GazuaFrame, self).__init__(*args, header=AttrMap(self.search_edit, 'header'))
 
     def keypress(self, size, key):
         if len(key) == 1 and key.isalpha:

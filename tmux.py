@@ -5,7 +5,7 @@ import sys
 
 from uuid import uuid4
 
-SESSION_PREFIX = "gz-"
+SESSION_PREFIX = "ec2-gz-"
 
 
 def create_tmux_command(hostnames):

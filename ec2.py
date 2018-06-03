@@ -58,9 +58,9 @@ def clear_instance(i, group_tag, name_tag):
         'name': tags.get(name_tag, 'unknown_name'),
         'group': tags.get(group_tag, 'unknown_group'),
         'type': i['InstanceType'],
-        'key_name': i.get('KeyName'),
-        'private_ip': i.get('PrivateIpAddress'),
-        'public_ip': i.get('PublicIpAddress'),
+        'key_name': i.get('KeyName', '-'),
+        'private_ip': i.get('PrivateIpAddress', '-'),
+        'public_ip': i.get('PublicIpAddress', '-'),
         'is_running': i['State']['Name'] == 'running',
         'tags': tags,
     }
@@ -75,6 +75,7 @@ def get_instances():
     for name, config in configs.items():
         instances[name] = {}
 
+        print 'Get instances from ec2 [%s]' % name
         resp = get_describe_instances(config)
 
         if len(resp['Reservations']) == 0:
