@@ -1,9 +1,9 @@
 name: major
 
 credential:
-    aws_access_key_id:
+    aws_access_key_id: 
     aws_secret_access_key: 
-    region: 'ap-northeast-2'
+    region: ap-northeast-2
 
 ssh-path: ~/.ssh
 

@@ -6,6 +6,8 @@ from urwid import CheckBox
 from urwid import Frame
 from urwid import Edit
 from urwid import AttrMap
+from urwid import SimpleFocusListWalker
+from urwid import SimpleListWalker
 
 from logger import log
 
@@ -45,8 +47,11 @@ class SSHCheckBox(CheckBox):
 
 class GazuaFrame(Frame):
 
-    def __init__(self, *args):
+    column_pos = 0
+
+    def __init__(self, *args, **kwargs):
         self.search_edit = SearchEdit()
+        self.arrow_callback = kwargs['arrow_callback']
         super(GazuaFrame, self).__init__(*args, header=self.search_edit)
 
     def keypress(self, size, key):
@@ -56,5 +61,31 @@ class GazuaFrame(Frame):
         elif key == 'backspace':
             self.search_edit.set_edit_text(
                 self.search_edit.get_edit_text()[0:-1])
+        elif key == 'left':
+            if self.column_pos == 0:
+                self.arrow_callback(None)
+            elif self.column_pos == 1:
+                self.column_pos -= 1
+                self.arrow_callback(0)
+            else:
+                self.column_pos -= 1
+                self.arrow_callback(1)
+        elif key == 'right':
+            if self.column_pos == 0:
+                self.column_pos += 1
+                self.arrow_callback(1)
+            elif self.column_pos == 1:
+                self.column_pos += 1
+                self.arrow_callback(2)
+            else:
+                self.arrow_callback(None)
+
+        log.info(">>>>> key: " + key)
 
         return super(GazuaFrame, self).keypress(size, key)
+
+
+class ExpadableListWalker(SimpleFocusListWalker):
+
+    def set_focus(self, position):
+        super(ExpadableListWalker, self).set_focus(position)

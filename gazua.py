@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
+import threading
+
 import os
 import sys
 import collections
+import time
+
 import urwid
 import ssh
+import ec2
 
 from uuid import uuid4
 
@@ -21,8 +26,7 @@ from urwid import MainLoop
 from urwid import AttrMap
 from urwid import LineBox
 from urwid import ListBox
-from urwid import SimpleFocusListWalker
-
+from widget import ExpadableListWalker
 
 LOAD_EC2 = Text('[F2]Load EC2')
 DELETE_EC2 = Text('[F3]Delete EC2')
@@ -30,9 +34,13 @@ FOOTER = AttrMap(Columns([(15, LOAD_EC2), DELETE_EC2]), 'footer')
 
 SESSION_NAME_PREFIX = "gz-"
 
-SELECTED_HOSTS = []
-GROUP_WIDGETS = []
-HOST_WIDGETS = collections.OrderedDict()
+
+# SELECTED_HOSTS = []
+# GROUP_WIDGETS = []
+# HOST_WIDGETS = collections.OrderedDict()
+#
+# aws_widgets = []
+# group_widgets = []
 
 
 def create_tmux_command():
@@ -72,86 +80,246 @@ def run_tmux():
         sys.exit(0)
 
 
-def on_group_changed():
-    focus_item = group_listbox.get_focus()
+# def on_group_changed():
+#     focus_item = group_listbox.get_focus()
+#
+#     for group_widget in GROUP_WIDGETS:
+#         if group_widget == focus_item[0]:
+#             group_widget.set_attr_map({None: 'group_focus'})
+#         else:
+#             group_widget.set_attr_map({None: None})
+#
+#     group_widget = focus_item[0].original_widget[0].text
+#
+#     host_listbox.body = ExpadableListWalker(HOST_WIDGETS[group_widget])
+#
+#     for widget_attrs in HOST_WIDGETS.values():
+#         for host_attr in widget_attrs:
+#             host_attr.original_widget[0].set_state(False)
 
-    for group_widget in GROUP_WIDGETS:
-        if group_widget == focus_item[0]:
-            group_widget.set_attr_map({None: 'group_focus'})
-        else:
-            group_widget.set_attr_map({None: None})
+class AWSView(object):
 
-    group_widget = focus_item[0].original_widget[0].text
+    def __init__(self, names):
+        self.names = names
+        self._init_widgets()
 
-    host_listbox.body = SimpleFocusListWalker(HOST_WIDGETS[group_widget])
+    def _init_widgets(self):
+        self.widgets = []
 
-    for widget_attrs in HOST_WIDGETS.values():
-        for host_attr in widget_attrs:
-            host_attr.original_widget[0].set_state(False)
+        for name in self.names:
+            widget = AttrMap(SelectableText(name), None, {None: 'aws_focus'})
+            self.widgets.append(widget)
+
+        self.walker = ExpadableListWalker(self.widgets)
+        self.listbox = ListBox(self.walker)
+
+    def on_changed(self):
+        log.info('on_aws_changed')
+        self.update_focus()
+
+    def update_focus(self):
+        widget, pos = self.walker.get_focus()
+        widget.set_attr_map({None: 'aws_focus'})
+
+        prev_widget, _ = self.walker.get_prev(pos)
+        if prev_widget:
+            prev_widget.set_attr_map({None: None})
+
+        next_widget, _ = self.walker.get_next(pos)
+        if next_widget:
+            next_widget.set_attr_map({None: None})
+
+    def get_selected_name(self):
+        _, pos = self.walker.get_focus()
+        return self.names[pos]
+
+    def get_walker(self):
+        return self.walker
+
+    def get_widget(self):
+        return self.listbox
 
 
-def on_host_selected(checkbox, state, hostname):
-    if state:
-        SELECTED_HOSTS.append(hostname)
-    else:
-        SELECTED_HOSTS.remove(hostname)
+class GroupView(object):
+    names = []
+    widgets = []
+    walker = None
+
+    def __init__(self):
+        self._init_widgets()
+
+    def _init_widgets(self):
+        self.widgets = []
+        self.walker = ExpadableListWalker(self.widgets)
+        self.listbox = ListBox(self.walker)
+
+    def on_changed(self):
+        log.info('on_group_changed')
+        self.update_focus()
+
+    def update_focus(self):
+        widget, pos = self.walker.get_focus()
+        widget.set_attr_map({None: 'group_focus'})
+
+        prev_widget, _ = self.walker.get_prev(pos)
+        if prev_widget:
+            prev_widget.set_attr_map({None: None})
+
+        next_widget, _ = self.walker.get_next(pos)
+        if next_widget:
+            next_widget.set_attr_map({None: None})
+
+    def get_selected_name(self):
+        _, pos = self.walker.get_focus()
+        return self.names[pos]
+
+    def get_walker(self):
+        return self.walker
+
+    def get_widget(self):
+        return self.listbox
 
 
-configs = ssh.parse_config()
+class InstanceView(object):
+
+    def __init__(self, instances):
+        self.instances = instances
+        self._init_widgets()
+
+    def _init_widgets(self):
+        self.widgets = []
+
+        for i in self.instances:
+            widget = AttrMap(SelectableText(i['name']), None, 'instance_focus')
+            self.widgets.append(widget)
+
+        self.walker = ExpadableListWalker(self.widgets)
+        self.listbox = ListBox(self.walker)
+
+    def on_changed(self):
+        log.info('on_i_changed')
+
+    def get_walker(self):
+        return self.walker
+
+    def get_widget(self):
+        return self.listbox
 
 
-for group, hosts in configs.items():
+class Gazua(object):
 
-    if group not in HOST_WIDGETS:
-        HOST_WIDGETS[group] = []
+    def __init__(self):
+        i = ec2.get_instances()
+        i['minor'] = i['major']
+        self.instances = i
+        self._init_views()
 
-    for host, values in hosts.items():
-        host_widget = SSHCheckBox(run_tmux, host)
+    def _init_views(self):
+        aws_names = self.instances.keys()
+        self.aws_view = AWSView(aws_names)
 
-        ipaddr = values.get('HostName', 'unknown')
-        ipaddr_widget = Text(ipaddr, align='left')
+        # aws_name = self.aws_view.get_selected_name()
+        # group_names = self.instances[aws_name].keys()
+        self.group_view = GroupView()
 
-        column_widget = Columns([host_widget, ipaddr_widget], dividechars=2)
-        urwid.connect_signal(host_widget, 'change', on_host_selected, host)
+        # group_name = self.group_view.get_selected_name()
+        # init_instances = self.instances[aws_name][group_name]
+        self.instance_view = InstanceView([])
 
-        host_widget = AttrMap(column_widget, None, 'host_focus')
-        HOST_WIDGETS[group].append(host_widget)
+        urwid.connect_signal(self.aws_view.get_walker(), "modified", self.on_aws_changed)
+        urwid.connect_signal(self.group_view.get_walker(), "modified", self.on_group_changed)
 
-    group_widget = SelectableText(group, wrap='clip')
-    count_widget = Text(str(len(hosts)), align='right')
-    arrow_widget = Text(">", align='right')
-    column_widget = Columns(
-        [group_widget, count_widget, arrow_widget], dividechars=2)
-    group_widget = AttrMap(column_widget, None)
-    GROUP_WIDGETS.append(group_widget)
+        self.view = Columns([
+            (15, self.aws_view.get_widget()),
+            (25, self.group_view.get_widget()),
+            self.instance_view.get_widget()
+        ])
 
-group_model = SimpleFocusListWalker(GROUP_WIDGETS)
-group_listbox = ListBox(group_model)
-group_box = LineBox(group_listbox, tlcorner='', tline='', lline='',
-                    trcorner='', blcorner='', rline='│', bline='', brcorner='')
-urwid.connect_signal(group_model, "modified", on_group_changed)
+        self.aws_view.walker._modified()
 
-first_host_widget = HOST_WIDGETS[HOST_WIDGETS.keys()[0]]
-host_model = SimpleFocusListWalker(first_host_widget)
-host_listbox = ListBox(host_model)
-host_box = LineBox(host_listbox, tlcorner='', tline='', lline='',
-                   trcorner='', blcorner='', rline='', bline='', brcorner='')
+    def on_aws_changed(self):
+        pass
+        # self.aws_view.on_changed()
+        #
+        # aws_name = self.aws_view.get_selected_name()
+        # self.group_view.update(self.instances[aws_name].keys())
+        # self.group_view.on_changed()
 
-GROUP_WIDGETS[0].set_attr_map({None: 'group_focus'})
+    def on_group_changed(self):
+        pass
+        self.group_view.on_changed()
 
-columns = Columns([(50, group_box), host_box])
-body = LineBox(columns)
+    def clear_group_focus(self):
+        pass
+        self.group_view.clear_focus()
+
+    def get_view(self):
+        return self.view
+
+
+# for group, hosts in configs.items():
+#
+#     if group not in HOST_WIDGETS:
+#         HOST_WIDGETS[group] = []
+#
+#     for host, values in hosts.items():
+#         host_widget = SSHCheckBox(run_tmux, host)
+#
+#         ipaddr = values.get('HostName', 'unknown')
+#         ipaddr_widget = Text(ipaddr, align='left')
+#
+#         column_widget = Columns([host_widget, ipaddr_widget], dividechars=2)
+#         urwid.connect_signal(host_widget, 'change', on_host_selected, host)
+#
+#         host_widget = AttrMap(column_widget, None, 'instance_focus')
+#         HOST_WIDGETS[group].append(host_widget)
+#
+#     group_widget = SelectableText(group, wrap='clip')
+#     count_widget = Text(str(len(hosts)), align='right')
+#     arrow_widget = Text(">", align='right')
+#     column_widget = Columns(
+#         [group_widget, count_widget, arrow_widget], dividechars=2)
+#     group_widget = AttrMap(column_widget, None)
+#     GROUP_WIDGETS.append(group_widget)
+#
+# group_model = ExpadableListWalker(GROUP_WIDGETS)
+# group_listbox = ListBox(group_model)
+# group_box = LineBox(group_listbox, tlcorner='', tline='', lline='',
+#                     trcorner='', blcorner='', rline='│', bline='', brcorner='')
+# urwid.connect_signal(group_model, "modified", on_group_changed)
+#
+# first_host_widget = HOST_WIDGETS[HOST_WIDGETS.keys()[0]]
+# host_model = ExpadableListWalker(first_host_widget)
+# host_listbox = ListBox(host_model)
+# host_box = LineBox(host_listbox, tlcorner='', tline='', lline='',
+#                    trcorner='', blcorner='', rline='', bline='', brcorner='')
+#
+# GROUP_WIDGETS[0].set_attr_map({None: 'group_focus'})
+#
+# columns = Columns([(50, group_box), host_box])
+gazua = Gazua()
+body = LineBox(gazua.get_view())
 
 palette = [
     ('header', 'white', 'dark red', 'bold'),
     ('footer', 'black', 'light gray'),
     ('group', 'black', 'yellow', 'bold'),
     ('host', 'black', 'dark green'),
+    ('aws_focus', 'black', 'dark green'),
     ('group_focus', 'black', 'dark green'),
-    ('host_focus', 'black', 'yellow'),
+    ('instance_focus', 'black', 'yellow'),
 ]
 
-frame = GazuaFrame(body)
+
+def me(column_pos):
+    # if column_pos == 0:
+        # gazua.clear_group_focus()
+    #     gazua.set_aws_focus()
+    # if column_pos == 1:
+    pass
+
+
+frame = GazuaFrame(body, arrow_callback=me)
 
 
 def load_ec2():
@@ -167,6 +335,16 @@ def key_pressed(key):
         pass
         # delete_ec2()
 
-loop = MainLoop(frame, palette, handle_mouse=False,
+
+def refreshScreen(mainloop):
+    while True:
+        mainloop.draw_screen()
+        time.sleep(1)
+
+
+loop = MainLoop(frame, palette, handle_mouse=True,
                 unhandled_input=key_pressed)
+# refresh = threading.Thread(target=refreshScreen, args=(loop,))
+# refresh.start()
+
 loop.run()
