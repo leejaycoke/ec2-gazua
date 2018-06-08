@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import re
-from urwid import Text
-from urwid import CheckBox
-from urwid import Frame
-from urwid import Edit
+
 from urwid import AttrMap
+from urwid import CheckBox
+from urwid import Edit
+from urwid import Frame
 from urwid import SimpleFocusListWalker
-from urwid import SelectableIcon
-from urwid import SimpleListWalker
+from urwid import Text
 
 from logger import log
 
@@ -51,7 +50,7 @@ class SSHCheckBox(CheckBox):
         if key == 'enter':
             self.enter_callback()
             return
-        elif key == ' ':
+        elif key == ' ':  # spacebar
             if not self.checkable and self.not_checkable_callback:
                 self.not_checkable_callback(self.label)
 
@@ -96,8 +95,6 @@ class GazuaFrame(Frame):
                 self.arrow_callback(2)
             else:
                 self.arrow_callback(None)
-
-        log.info(">>>>> key: " + key)
 
         return super(GazuaFrame, self).keypress(size, key)
 

@@ -125,7 +125,6 @@ class GroupView(object):
     def update_focus(self):
         widget, pos = self.walker.get_focus()
         widget.set_attr_map({None: 'group_focus'})
-        log.info('group pos=' + str(pos))
 
         prev_widget, _ = self.walker.get_prev(pos)
         if prev_widget:
@@ -178,10 +177,11 @@ class InstanceView(object):
         return [self._create_widget(i) for i in self.instances]
 
     def _create_widget(self, instance):
+        is_checkable = instance['is_running'] and instance['key_file']
         widgets = [
             (25, SSHCheckBox(
                 instance['name'][:21],
-                instance['is_running'],
+                is_checkable,
                 self._run_tmux,
                 self.not_checkable_callback,
                 on_state_change=self.instance_check_changed,
@@ -200,7 +200,6 @@ class InstanceView(object):
         footer.set_text('warning: the instance %s is not running' % instance_name)
 
     def instance_check_changed(self, widget, state, instance):
-        log.info("instance_check_changed")
         if state:
             self.selected_instances.append(instance)
         else:
@@ -227,18 +226,7 @@ class InstanceView(object):
 class Gazua(object):
 
     def __init__(self):
-        i = ec2.get_instances()
-        # i = {
-        #     'major': {
-        #         'live-web': [{'name': 'web1'}, {'name': 'web3'}, {'name': 'web3'}],
-        #         'jenkins': [{'name': 'jenkins1'}, {'name': 'jenkins2'}, {'name': 'jenkins3'}]
-        #     },
-        #     'minor': {
-        #         'live-was': [{'name': 'was1'}, {'name': 'was2'}, {'name': 'was3'}],
-        #         'mysql': [{'name': 'mysql1'}, {'name': 'mysql2'}, {'name': 'mysql3'}]
-        #     }
-        # }
-        self.instances = i
+        self.instances = ec2.get_instances()
         self._init_views()
 
     def _init_views(self):
@@ -277,7 +265,6 @@ class Gazua(object):
         self.instance_view.update_widgets(self.instances[aws_name][group_name])
 
     def on_group_changed(self):
-        log.info('on group changed')
         aws_name = self.aws_view.get_selected_name()
         group_name = self.group_view.get_selected_name()
         self.instance_view.update_widgets(self.instances[aws_name][group_name])

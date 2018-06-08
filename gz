@@ -27,16 +27,12 @@ if [ ! -d $DIR/venv ]; then
 
 	echo "- install Gazua~~~!!!"
 	echo "- install path: $DIR"
-    echo "- create virtualenv"
-	virtualenv $DIR/venv
 fi
-
-source $DIR/venv/bin/activate
 
 check_libs="$(pip freeze | grep urwid)"
 
 if [ -z $check_libs ]; then
-	pip install -r requirements.txt
+	pip install --user -r requirements.txt
 fi
 
 

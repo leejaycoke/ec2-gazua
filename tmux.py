@@ -2,7 +2,6 @@
 
 import os
 import sys
-from logger import log
 
 from uuid import uuid4
 
@@ -10,7 +9,6 @@ SESSION_PREFIX = "ec2-gz-"
 
 
 def create_tmux_command(ssh_params):
-    log.info(str(ssh_params))
     session = create_session_name()
     commands = [
         "tmux new-session -s %s -d -x 2000 -y 2000" % session,
