@@ -1,24 +1,21 @@
-name: major
-
-credential:
-    aws_access_key_id:
-    aws_secret_access_key: 
-    region: 'ap-northeast-2'
-
 ssh-path: ~/.ssh
 
-tag:
-    group: Group
-    name: Name
+credential:
+    aws_access_key_id: XXX
+    aws_secret_access_key: XXX
+    region: ap-northeast-2
 
-ip-address:
-    default: private
+group-tag: Group
+name-tag: Name
+
+connect-ip:
+    default: public
     group:
       live-company-group: private
     name:
       private-my-server: public
 
-identity-file:
+key-file:
     default: auto
     group:
         tag-group: ~/.ssh/test1

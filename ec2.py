@@ -2,159 +2,163 @@
 
 
 from os import listdir
+from os.path import isfile
 from os.path import dirname
 from os.path import join
 from os.path import realpath
+from os.path import expanduser
+from logger import log
 
 import boto3
 import yaml
 
-import ssh
-
 
 def get_config_files():
     folder = join(dirname(realpath(__file__)), 'conf')
-    return [join(folder, f) for f in listdir(folder)]
+    files = [join(folder, f) for f in listdir(folder) if f.endswith(".yml")]
+    if len(files) == 0:
+        raise IOError("Config file not found. please create file 'cp ./conf/aws.yml.example to ./conf/aws.yml'")
+    return files
 
 
 def read_config_files():
-    contents = []
+    contents = {}
     for config_file in get_config_files():
+        aws_name = config_file.rsplit('/', 1)[1].rsplit('.', 1)[0]  # /path/conf/aws.yml -> aws
         with open(config_file) as fp:
-            contents.append(fp.read())
+            contents[aws_name] = fp.read()
     return contents
 
 
 def get_configs():
     contents = read_config_files()
-
     configs = {}
 
-    for content in contents:
-        config = yaml.load(content)
-        configs[config['name']] = config
+    for aws_name, content in contents.items():
+        configs[aws_name] = yaml.load(content)
     return configs
 
 
-def get_ec2_names():
-    return get_configs().keys()
-
-
-def get_instances():
-    names = get_ec2_names()
-    for name in names:
-
-
-def get_ec2_
-
-def create_client():
-    config = get_configs()
-    access_key = config['credential']['aws_access_key_id']
-    secret_key = config['credential']['aws_secret_access_key']
-    region = config['credential']['region']
-
-    if access_key and secret_key:
-        session = boto3.session.Session(aws_access_key_id=access_key,
-                                        aws_secret_access_key=secret_key,
-                                        region_name=region)
-    else:
-        session = boto3.session.Session()
-
+def create_connection(access_key_id, secret_access_key, region):
+    session = boto3.session.Session(
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        region_name=region)
     return session.client('ec2')
 
 
-def get_describe_instances():
-    client = create_client()
-    ec2_list = client.describe_instances()
-    return ec2_list
+def get_describe_instances(config):
+    args = [config['credential']['aws_access_key_id'],
+            config['credential']['aws_secret_access_key'],
+            config['credential']['region']]
+    client = create_connection(*args)
+    return client.describe_instances()
 
 
-def get_list():
-    ec2_list = get_describe_instances()
-    ssh.exclude_ec2_config()
-
-    ssh_configs = {}
-    for rev in ec2_list['Reservations']:
-        ssh_config = convert_to_ssh_config(rev['Instances'][0])
-
-        if ssh_config['group'] not in ssh_configs:
-            ssh_configs[ssh_config['group']] = []
-        ssh_configs[ssh_config['group']].append(ssh_config)
-
-    ec2_lines = []
-
-    for group, config in ssh_configs.items():
-
-        ec2_lines.append(ssh.GZ_GROUP_PREFIX + group + '\n')
-
-        for content in config:
-            ec2_lines.append('Host ' + content['name'] + '\n')
-            ec2_lines.append('\tHostName ' + content['hostname'] + '\n')
-            ec2_lines.append('\tUser ' + content['user'] + '\n')
-            ec2_lines.append('\tIdentityFile ' +
-                             content['identity_file'] + '\n\n')
-
-    ssh.write_new_ec2_config(ec2_lines)
+def get_key_file(filename):
+    filepath = expanduser(filename)
+    if isfile(filepath):
+        return filepath
+    elif isfile(filepath + '.pem'):
+        return filepath + '.pem'
+    else:
+        return None
 
 
-aws_config = get_configs()
+def override_ip(instance, config):
+    for group_name, ip_type in config.get('group', {}).items():
+        if group_name in instance['group']:
+            instance['connect_ip'] = ip_type
 
-HOSTNAME_FINDER = {
-    'public_ip': lambda i: i.get('PublicIpAddress', i['PrivateIpAddress']),
-    'public_dns': lambda i: i['PublicDnsName'],
-    'private_ip': lambda i: i['PrivateIpAddress'],
-    'private_dns': lambda i: i['PrivateDnsName'],
-}
+    for group_name, ip_type in config.get('name', {}).items():
+        if group_name in instance['name']:
+            instance['connect_ip'] = ip_type
+
+    return instance
 
 
-def convert_to_ssh_config(instance):
-    group, name = None, None
+def override_key_file(instance, ssh_path, config):
+    for group_name, key_file in config.get('group', {}).items():
+        if group_name in instance['group']:
+            instance['key_file'] = ssh_path + key_file
+            instance['key_name'] = key_file
 
-    for tag in instance.get('Tags', []):
-        if tag['Key'] == aws_config['tag']['group']:
-            group = tag['Value']
-        elif tag['Key'] == aws_config['tag']['name']:
-            name = tag['Value']
+    for group_name, key_file in config.get('name', {}).items():
+        if group_name in instance['name']:
+            instance['key_file'] = ssh_path + key_file
+            instance['key_name'] = key_file
 
-    if not group:
-        group = 'default'
+    return instance
 
-    group = aws_config['group-prefix'] + ' ' + group
 
-    if not name:
-        name = instance.get('PublicIpAddress') or instance.get(
-            'PrivateDnsName')
+def override_user(instance, config):
+    for group_name, user in config.get('group', {}).items():
+        if group_name in instance['group']:
+            instance['user'] = user
 
-    # host
-    hostname = HOSTNAME_FINDER[aws_config['hostname']['default']](instance)
-    if group in aws_config['hostname']['group'].keys():
-        ip_way = aws_config['hostname']['group'][group]
-        hostname = HOSTNAME_FINDER[ip_way](instance)
+    for group_name, user in config.get('name', {}).items():
+        if group_name in instance['name']:
+            instance['user'] = user
 
-    if name in aws_config['hostname']['name'].keys():
-        ip_way = aws_config['hostname']['name'][name]
-        hostname = HOSTNAME_FINDER[ip_way](instance)
+    return instance
 
-    # identity-file
-    identity_file = aws_config['identity-file']['default']
-    if group in aws_config['identity-file']['group'].keys():
-        identity_file = aws_config['identity-file']['group'][group]
 
-    if name in aws_config['identity-file']['name'].keys():
-        identity_file = aws_config['identity-file']['name'][name]
+def clear_tags(tags):
+    return {t['Key']: t['Value'] if t['Value'] != '' else None for t in tags}
 
-    # user
-    user = aws_config['user']['default']
-    if user in aws_config['user']['group'].keys():
-        user = aws_config['user']['group'][user]
 
-    if user in aws_config['user']['name'].keys():
-        user = aws_config['user']['name'][user]
+def clear_instance(instance, config):
+    tags = clear_tags(instance.get('Tags', []))
 
-    return {
-        'group': group,
-        'name': name,
-        'user': user,
-        'hostname': hostname,
-        'identity_file': identity_file,
+    instance = {
+        'id': instance['InstanceId'],
+        'name': tags.get(config['name-tag'], '!-UNKNOWN_NAME'),
+        'group': tags.get(config['group-tag'], '!-UNKNOWN_GROUP'),
+        'type': instance['InstanceType'],
+        'key_name': instance.get('KeyName', '?'),
+        'private_ip': instance.get('PrivateIpAddress', '?'),
+        'public_ip': instance.get('PublicIpAddress', '?'),
+        'is_running': instance['State']['Name'] == 'running',
+        'tags': tags,
+        'user': config['user']['default']
     }
+
+    instance['connect_ip'] = instance['private_ip'] if config['connect-ip']['default'] == 'private' \
+        else instance['public_ip']
+
+    if config['key-file']['default'] == 'auto':
+        instance['key_file'] = get_key_file(config['ssh-path'] + '/' + instance['key_name'])
+    else:
+        instance['key_file'] = config['ssh-path'] + '/' + config['key-file']['default']
+
+    instance = override_ip(instance, config['connect-ip'])
+    instance = override_key_file(instance, config['ssh-path'], config['key-file'])
+    instance = override_user(instance, config['user'])
+
+    return instance
+
+
+def get_instances():
+    configs = get_configs()
+    instances = {}
+
+    for name, config in configs.items():
+        instances[name] = {}
+
+        print 'Get instances from ec2 [%s]' % name
+        resp = get_describe_instances(config)
+        if len(resp['Reservations']) == 0:
+            continue
+
+        cleared_instances = [clear_instance(i['Instances'][0], config) \
+                             for i in resp['Reservations']]
+
+        for i in cleared_instances:
+            group = i['group']
+
+            if i['group'] not in instances[name]:
+                instances[name][group] = []
+
+            instances[name][group].append(i)
+
+    return instances

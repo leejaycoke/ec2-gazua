@@ -4,45 +4,99 @@ import ec2
 
 import mock
 
-import ec2_dummy
 
+mock_config_content = """
+ssh-path: /path/to
 
-mocked_content = """
 credential:
-    aws_access_key_id: xx1
-    aws_secret_access_key: xx2
-    region: 'ap-northeast-2'
+    aws_access_key_id: XXX1
+    aws_secret_access_key: XXX2
+    region: ap-northeast-2
 
-tag:
-    group: Group
-    name: Name
+group-tag: Group
+name-tag: Name
 
-identity-file:
-    default: ~/.ssh/id_rsa_test
+connect-ip:
+    default: public
     group:
-        billing: ~/.ssh/id_rsa_billing
-        purch: ~/.ssh/id_rsa_purch
+      test1: private
     name:
-        billing_was1: ~/.ssh/id_rsa_billing2
-        st-live-db: ~/.ssh/id_rsa_settler2
+      test2: public
 
-hostname:
-    default: public_ip
+key-file:
+    default: auto
     group:
-      live-company-group: private_ip
+        test1: test_rsa1
     name:
-      private-my-server: public_dns
+        test2: test_rsa2
+
+user:
+    default: ec2-user
+    group:
+        test1: centos
+    name:
+        test2: leejuhyun
+
 """
 
-
-@mock.patch('ec2.read_config_file', return_value=mocked_content)
-def test_config(mocked_read_config_file):
-    config = ec2.get_config()
-    assert config['credential']['aws_access_key_id'] == 'xx1'
-    assert config['credential']['aws_secret_access_key'] == 'xx2'
-    assert config['credential']['region'] == 'ap-northeast-2'
+mock_config = {'aws': mock_config_content}
 
 
-def test_ec2_list():
-    ec2_list = ec2.get_list()
-    print ec2_list
+@mock.patch('ec2.read_config_files', return_value=mock_config)
+def test_config(mocked_read_config_files):
+    configs = ec2.get_configs()
+    assert configs['aws']['credential']['aws_access_key_id'] == 'XXX1'
+    assert configs['aws']['credential']['aws_secret_access_key'] == 'XXX2'
+    assert configs['aws']['credential']['region'] == 'ap-northeast-2'
+
+    assert configs['aws']['group-tag'] == 'Group'
+    assert configs['aws']['name-tag'] == 'Name'
+
+    assert configs['aws']['connect-ip']['default'] == 'public'
+    assert configs['aws']['connect-ip']['group']['test1'] == 'private'
+    assert configs['aws']['connect-ip']['name']['test2'] == 'public'
+
+    assert configs['aws']['key-file']['default'] == 'auto'
+    assert configs['aws']['key-file']['group']['test1'] == 'test_rsa1'
+    assert configs['aws']['key-file']['name']['test2'] == 'test_rsa2'
+
+    assert configs['aws']['user']['default'] == 'ec2-user'
+    assert configs['aws']['user']['group']['test1'] == 'centos'
+    assert configs['aws']['user']['name']['test2'] == 'leejuhyun'
+
+
+describe_instances = {
+    'Reservations': [
+        {'Instances': [
+            {
+                'InstanceId': 'i-hodolman',
+                'InstanceType': 't2.micro',
+                'State': {
+                    'Name': 'running',
+                },
+                'PrivateIpAddress': '123.123.123.123',
+                'PublicIpAddress': '222.222.222.222',
+                'KeyName': 'hodolkey',
+                'Tags': [
+                    {'Key': 'Group', 'Value': 'hogroup'},
+                    {'Key': 'Name', 'Value': 'honame'}
+                ]
+            }
+        ]}
+    ]
+}
+
+
+@mock.patch('ec2.read_config_files', return_value=mock_config)
+@mock.patch('ec2.get_describe_instances', return_value=describe_instances)
+def test_config(mocked_config_contents, mocked_instances):
+    instances = ec2.get_instances()
+    assert instances['aws']['hogroup'][0]['id'] == 'i-hodolman'
+    assert instances['aws']['hogroup'][0]['group'] == 'hogroup'
+    assert instances['aws']['hogroup'][0]['name'] == 'honame'
+    assert instances['aws']['hogroup'][0]['is_running'] == True
+    assert instances['aws']['hogroup'][0]['private_ip'] == '123.123.123.123'
+    assert instances['aws']['hogroup'][0]['public_ip'] == '222.222.222.222'
+    assert instances['aws']['hogroup'][0]['key_name'] == 'hodolkey'
+    assert instances['aws']['hogroup'][0]['key_file'] == None
+    assert instances['aws']['hogroup'][0]['user'] == 'ec2-user'
