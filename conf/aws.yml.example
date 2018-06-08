@@ -15,7 +15,7 @@ connect-ip:
     name:
       private-my-server: public
 
-identity-file:
+key-file:
     default: auto
     group:
         tag-group: ~/.ssh/test1

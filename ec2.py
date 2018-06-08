@@ -15,7 +15,10 @@ import yaml
 
 def get_config_files():
     folder = join(dirname(realpath(__file__)), 'conf')
-    return [join(folder, f) for f in listdir(folder) if f.endswith(".yml")]
+    files = [join(folder, f) for f in listdir(folder) if f.endswith(".yml")]
+    if len(files) == 0:
+        raise IOError("Config file not found. please create file 'cp ./conf/aws.yml.example to ./conf/aws.yml'")
+    return files
 
 
 def read_config_files():
