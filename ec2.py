@@ -104,7 +104,7 @@ def override_user(instance, config):
 
 
 def clear_tags(tags):
-    return {t['Key']: t['Value'] if t['Value'] != '' else None for t in tags}
+    return {t['Key']: t['Value'] for t in tags if t['Value'] != ''}
 
 
 def clear_instance(instance, config):
