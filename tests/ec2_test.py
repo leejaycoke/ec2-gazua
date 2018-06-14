@@ -4,7 +4,6 @@ import ec2
 
 import mock
 
-
 mock_config_content = """
 ssh-path: /path/to
 
@@ -100,3 +99,97 @@ def test_config(mocked_config_contents, mocked_instances):
     assert instances['aws']['hogroup'][0]['key_name'] == 'hodolkey'
     assert instances['aws']['hogroup'][0]['key_file'] == None
     assert instances['aws']['hogroup'][0]['user'] == 'ec2-user'
+
+
+describe_instances_unsorted = {
+    'Reservations': [
+        {'Instances': [
+            {
+                'InstanceId': 'i-hodolman',
+                'InstanceType': 't2.micro',
+                'State': {
+                    'Name': 'running',
+                },
+                'PrivateIpAddress': '123.123.123.123',
+                'PublicIpAddress': '222.222.222.222',
+                'KeyName': 'hodolkey',
+                'Tags': [
+                    {'Key': 'Name', 'Value': 'z'},
+                    {'Key': 'Group', 'Value': 'hogroup'},
+                ]
+            }],
+        },
+        {'Instances': [
+            {
+                'InstanceId': 'i-hodolman',
+                'InstanceType': 't2.micro',
+                'State': {
+                    'Name': 'running',
+                },
+                'PrivateIpAddress': '123.123.123.123',
+                'PublicIpAddress': '222.222.222.222',
+                'KeyName': 'hodolkey',
+                'Tags': [
+                    {'Key': 'Name', 'Value': 'b'},
+                    {'Key': 'Group', 'Value': 'hogroup'},
+                ]
+            }],
+        },
+        {'Instances': [
+            {
+                'InstanceId': 'i-hodolman',
+                'InstanceType': 't2.micro',
+                'State': {
+                    'Name': 'running',
+                },
+                'PrivateIpAddress': '123.123.123.123',
+                'PublicIpAddress': '222.222.222.222',
+                'KeyName': 'hodolkey',
+                'Tags': [
+                    {'Key': 'Name', 'Value': 'a'},
+                    {'Key': 'Group', 'Value': 'hogroup'},
+                ]
+            }],
+        },
+        {'Instances': [
+            {
+                'InstanceId': 'i-hodolman',
+                'InstanceType': 't2.micro',
+                'State': {
+                    'Name': 'running',
+                },
+                'PrivateIpAddress': '123.123.123.123',
+                'PublicIpAddress': '222.222.222.222',
+                'KeyName': 'hodolkey',
+                'Tags': [
+                    {'Key': 'Name', 'Value': '1'},
+                    {'Key': 'Group', 'Value': 'hogroup'},
+                ]
+            }],
+        },
+        {'Instances': [
+            {
+                'InstanceId': 'i-hodolman',
+                'InstanceType': 't2.micro',
+                'State': {
+                    'Name': 'running',
+                },
+                'PrivateIpAddress': '123.123.123.123',
+                'PublicIpAddress': '222.222.222.222',
+                'KeyName': 'hodolkey',
+                'Tags': [
+                    {'Key': 'Name', 'Value': '1'},
+                    {'Key': 'Group', 'Value': 'aogroup'},
+                ]
+            }],
+        },
+    ]
+}
+
+
+@mock.patch('ec2.read_config_files', return_value=mock_config)
+@mock.patch('ec2.get_describe_instances', return_value=describe_instances_unsorted)
+def test_sorting(mocked_config_contents, mocked_instances):
+    instances = ec2.get_instances()
+    assert set([g for g in instances['aws'].keys()]) == {'aogroup', 'hogroup'}
+    assert [n['name'] for n in instances['aws']['hogroup']] == ['1', 'a', 'b', 'z']

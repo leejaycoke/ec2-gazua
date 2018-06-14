@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
+import collections
 from os import listdir
 from os.path import isfile
 from os.path import dirname
@@ -142,23 +142,24 @@ def get_instances():
     configs = get_configs()
     instances = {}
 
-    for name, config in configs.items():
-        instances[name] = {}
+    for name, config in sorted(configs.items(), key=lambda x: x[0]):
+        instances[name] = collections.OrderedDict()
 
         print 'Get instances from ec2 [%s]' % name
         resp = get_describe_instances(config)
         if len(resp['Reservations']) == 0:
             continue
 
-        cleared_instances = [clear_instance(i['Instances'][0], config) \
-                             for i in resp['Reservations']]
+        cleared = [clear_instance(i['Instances'][0], config) \
+                   for i in resp['Reservations']]
 
-        for i in cleared_instances:
-            group = i['group']
+        sorted_instances = sorted(cleared, key=lambda x: x['name'])
 
-            if i['group'] not in instances[name]:
-                instances[name][group] = []
+        groups = [i['group'] for i in sorted_instances]
+        for group in sorted(groups):
+            instances[name][group] = []
 
-            instances[name][group].append(i)
+        for i in sorted_instances:
+            instances[name][i['group']].append(i)
 
     return instances
