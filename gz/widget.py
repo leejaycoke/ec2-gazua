@@ -9,8 +9,6 @@ from urwid import Frame
 from urwid import SimpleFocusListWalker
 from urwid import Text
 
-from logger import log
-
 
 class ClippedText(Text):
 
@@ -40,7 +38,8 @@ class SelectableText(Text):
 class SSHCheckBox(CheckBox):
     not_checkable_callback = None
 
-    def __init__(self, label, checkable, enter_callback, not_checkable_callback, *args, **kwargs):
+    def __init__(self, label, checkable, enter_callback,
+                 not_checkable_callback, *args, **kwargs):
         self.checkable = checkable
         self.enter_callback = enter_callback
         self.not_checkable_callback = not_checkable_callback
@@ -68,7 +67,9 @@ class GazuaFrame(Frame):
     def __init__(self, *args, **kwargs):
         self.search_edit = Edit('Search: ')
         self.arrow_callback = kwargs['arrow_callback']
-        super(GazuaFrame, self).__init__(*args, header=AttrMap(self.search_edit, 'header'))
+        super(GazuaFrame, self).__init__(*args,
+                                         header=AttrMap(self.search_edit,
+                                                        'header'))
 
     def keypress(self, size, key):
         if len(key) == 1 and key.isalpha:

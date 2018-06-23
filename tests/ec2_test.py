@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import ec2
+from gazua import ec2
 
 import mock
 

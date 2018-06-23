@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import ssh
+from gazua import ssh
 import mock
 
 
