@@ -1,17 +1,7 @@
 # -*- coding: utf-8 -*-
 
-
 import urwid
-import ec2
-import tmux
 
-from logger import log
-
-from widget import SelectableText
-from widget import SSHCheckBox
-from widget import GazuaFrame
-from widget import ExpadableListWalker
-from widget import ClippedText
 from urwid import Frame
 
 from urwid import Text
@@ -20,6 +10,15 @@ from urwid import MainLoop
 from urwid import AttrMap
 from urwid import LineBox
 from urwid import ListBox
+
+from .widget import SelectableText
+from .widget import SSHCheckBox
+from .widget import GazuaFrame
+from .widget import ExpadableListWalker
+from .widget import ClippedText
+
+from . import ec2
+from . import tmux
 
 
 class Footer(object):
@@ -55,7 +54,8 @@ class AWSView(object):
         self.walker = ExpadableListWalker(self.widgets)
         self.listbox = ListBox(self.walker)
         self.view = LineBox(self.listbox, tlcorner='', tline='', lline='',
-                            trcorner='', blcorner='', rline='│', bline='', brcorner='')
+                            trcorner='', blcorner='', rline='│', bline='',
+                            brcorner='')
 
     def update_widgets(self, names):
         self.names = names
@@ -108,7 +108,8 @@ class GroupView(object):
         self.walker = ExpadableListWalker(self.widgets)
         self.listbox = ListBox(self.walker)
         self.view = LineBox(self.listbox, tlcorner='', tline='', lline='',
-                            trcorner='', blcorner='', rline='│', bline='', brcorner='')
+                            trcorner='', blcorner='', rline='│', bline='',
+                            brcorner='')
 
     def update_widgets(self, names):
         self.names = names
@@ -197,7 +198,8 @@ class InstanceView(object):
         return AttrMap(columns_widget, None, 'instance_focus')
 
     def not_checkable_callback(self, instance_name):
-        footer.set_text('warning: the instance %s is not running' % instance_name)
+        footer.set_text(
+            'warning: the instance %s is not running' % instance_name)
 
     def instance_check_changed(self, widget, state, instance):
         if state:
@@ -212,7 +214,8 @@ class InstanceView(object):
         return self.listbox
 
     def _run_tmux(self):
-        tmux_params = [self._create_tmux_param(i) for i in self.selected_instances]
+        tmux_params = [self._create_tmux_param(i) for i in
+                       self.selected_instances]
         tmux.run(tmux_params)
 
     def _create_tmux_param(self, instance):
@@ -230,19 +233,21 @@ class Gazua(object):
         self._init_views()
 
     def _init_views(self):
-        aws_names = self.instances.keys()
+        aws_names = list(self.instances.keys())
         self.aws_view = AWSView(aws_names)
 
         aws_name = self.aws_view.get_selected_name()
-        group_names = self.instances[aws_name].keys()
+        group_names = list(self.instances[aws_name].keys())
         self.group_view = GroupView(group_names)
 
         group_name = self.group_view.get_selected_name()
         init_instances = self.instances[aws_name][group_name]
         self.instance_view = InstanceView(init_instances)
 
-        urwid.connect_signal(self.aws_view.get_walker(), "modified", self.on_aws_changed)
-        urwid.connect_signal(self.group_view.get_walker(), "modified", self.on_group_changed)
+        urwid.connect_signal(self.aws_view.get_walker(), "modified",
+                             self.on_aws_changed)
+        urwid.connect_signal(self.group_view.get_walker(), "modified",
+                             self.on_group_changed)
 
         self.view = Columns([
             (15, self.aws_view.get_widget()),
@@ -255,10 +260,12 @@ class Gazua(object):
         self.aws_view.update_focus()
 
         # group
-        urwid.disconnect_signal(self.group_view.get_walker(), "modified", self.on_group_changed)
+        urwid.disconnect_signal(self.group_view.get_walker(), "modified",
+                                self.on_group_changed)
         aws_name = self.aws_view.get_selected_name()
-        self.group_view.update_widgets(self.instances[aws_name].keys())
-        urwid.connect_signal(self.group_view.get_walker(), "modified", self.on_group_changed)
+        self.group_view.update_widgets(list(self.instances[aws_name].keys()))
+        urwid.connect_signal(self.group_view.get_walker(), "modified",
+                             self.on_group_changed)
 
         # instance
         group_name = self.group_view.get_selected_name()
@@ -324,5 +331,6 @@ def key_pressed(key):
         raise urwid.ExitMainLoop()
 
 
-loop = MainLoop(wrapper, palette, handle_mouse=False, unhandled_input=key_pressed)
+loop = MainLoop(wrapper, palette, handle_mouse=False,
+                unhandled_input=key_pressed)
 loop.run()

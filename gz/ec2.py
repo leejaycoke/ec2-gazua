@@ -1,30 +1,32 @@
 # -*- coding: utf-8 -*-
 
 import collections
-from os import listdir
-from os.path import isfile
-from os.path import dirname
-from os.path import join
-from os.path import realpath
-from os.path import expanduser
-from logger import log
-
 import boto3
 import yaml
 
+from os import listdir
+from os.path import isfile
+from os.path import join
+from os.path import expanduser
+
+from .logger import console
+from . import utils
+
 
 def get_config_files():
-    folder = join(dirname(realpath(__file__)), 'conf')
+    folder = utils.join_path(__file__, '../conf')
     files = [join(folder, f) for f in listdir(folder) if f.endswith(".yml")]
     if len(files) == 0:
-        raise IOError("Config file not found. please create file 'cp ./conf/aws.yml.example to ./conf/aws.yml'")
+        raise IOError(
+            "Config file not found. please create file 'cp ./conf/aws.yml.example to ./conf/aws.yml'")
     return files
 
 
 def read_config_files():
     contents = {}
     for config_file in get_config_files():
-        aws_name = config_file.rsplit('/', 1)[1].rsplit('.', 1)[0]  # /path/conf/aws.yml -> aws
+        aws_name = config_file.rsplit('/', 1)[1].rsplit('.', 1)[
+            0]  # /path/conf/aws.yml -> aws
         with open(config_file) as fp:
             contents[aws_name] = fp.read()
     return contents
@@ -123,16 +125,20 @@ def clear_instance(instance, config):
         'user': config['user']['default']
     }
 
-    instance['connect_ip'] = instance['private_ip'] if config['connect-ip']['default'] == 'private' \
+    instance['connect_ip'] = instance['private_ip'] if config['connect-ip'][
+                                                           'default'] == 'private' \
         else instance['public_ip']
 
     if config['key-file']['default'] == 'auto':
-        instance['key_file'] = get_key_file(config['ssh-path'] + '/' + instance['key_name'])
+        instance['key_file'] = get_key_file(
+            config['ssh-path'] + '/' + instance['key_name'])
     else:
-        instance['key_file'] = config['ssh-path'] + '/' + config['key-file']['default']
+        instance['key_file'] = config['ssh-path'] + '/' + config['key-file'][
+            'default']
 
     instance = override_ip(instance, config['connect-ip'])
-    instance = override_key_file(instance, config['ssh-path'], config['key-file'])
+    instance = override_key_file(instance, config['ssh-path'],
+                                 config['key-file'])
     instance = override_user(instance, config['user'])
 
     return instance
@@ -145,7 +151,7 @@ def get_instances():
     for name, config in sorted(configs.items(), key=lambda x: x[0]):
         instances[name] = collections.OrderedDict()
 
-        print 'Get instances from ec2 [%s]' % name
+        console('Get instances from ec2 [%s]' % name)
         resp = get_describe_instances(config)
         if len(resp['Reservations']) == 0:
             continue

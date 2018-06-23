@@ -141,7 +141,9 @@ celerybeat-schedule
 .env
 .venv
 env/
+env/
 venv/
+venv3/
 ENV/
 env.bak/
 venv.bak/
@@ -161,3 +163,6 @@ venv.bak/
 
 # config
 /conf/*.yml
+
+# iml
+*.iml
