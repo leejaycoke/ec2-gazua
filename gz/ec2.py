@@ -159,13 +159,14 @@ def get_instances():
         cleared = [clear_instance(i['Instances'][0], config) \
                    for i in resp['Reservations']]
 
-        sorted_instances = sorted(cleared, key=lambda x: x['name'])
+        name_sorted = sorted(cleared, key=lambda x: x['name'])
+        running_sorted = sorted(name_sorted, key=lambda x: x['is_running'], reverse=True)
 
-        groups = [i['group'] for i in sorted_instances]
+        groups = [i['group'] for i in running_sorted]
         for group in sorted(groups):
             instances[name][group] = []
 
-        for i in sorted_instances:
+        for i in running_sorted:
             instances[name][i['group']].append(i)
 
     return instances

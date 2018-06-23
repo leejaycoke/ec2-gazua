@@ -115,13 +115,13 @@ describe_instances_unsorted = {
                 'InstanceId': 'i-hodolman',
                 'InstanceType': 't2.micro',
                 'State': {
-                    'Name': 'running',
+                    'Name': 'terminated',
                 },
                 'PrivateIpAddress': '123.123.123.123',
                 'PublicIpAddress': '222.222.222.222',
                 'KeyName': 'hodolkey',
                 'Tags': [
-                    {'Key': 'Name', 'Value': 'z'},
+                    {'Key': 'Name', 'Value': 'a'},
                     {'Key': 'Group', 'Value': 'hogroup'},
                 ]
             }],
@@ -153,7 +153,23 @@ describe_instances_unsorted = {
                 'PublicIpAddress': '222.222.222.222',
                 'KeyName': 'hodolkey',
                 'Tags': [
-                    {'Key': 'Name', 'Value': 'a'},
+                    {'Key': 'Name', 'Value': 'c'},
+                    {'Key': 'Group', 'Value': 'hogroup'},
+                ]
+            }],
+        },
+        {'Instances': [
+            {
+                'InstanceId': 'i-hodolman',
+                'InstanceType': 't2.micro',
+                'State': {
+                    'Name': 'terminated',
+                },
+                'PrivateIpAddress': '123.123.123.123',
+                'PublicIpAddress': '222.222.222.222',
+                'KeyName': 'hodolkey',
+                'Tags': [
+                    {'Key': 'Name', 'Value': 'd'},
                     {'Key': 'Group', 'Value': 'hogroup'},
                 ]
             }],
@@ -169,23 +185,7 @@ describe_instances_unsorted = {
                 'PublicIpAddress': '222.222.222.222',
                 'KeyName': 'hodolkey',
                 'Tags': [
-                    {'Key': 'Name', 'Value': '1'},
-                    {'Key': 'Group', 'Value': 'hogroup'},
-                ]
-            }],
-        },
-        {'Instances': [
-            {
-                'InstanceId': 'i-hodolman',
-                'InstanceType': 't2.micro',
-                'State': {
-                    'Name': 'running',
-                },
-                'PrivateIpAddress': '123.123.123.123',
-                'PublicIpAddress': '222.222.222.222',
-                'KeyName': 'hodolkey',
-                'Tags': [
-                    {'Key': 'Name', 'Value': '1'},
+                    {'Key': 'Name', 'Value': 'e'},
                     {'Key': 'Group', 'Value': 'aogroup'},
                 ]
             }],
@@ -206,5 +206,5 @@ def test_sorting(monkeypatch):
 
     instances = ec2.get_instances()
     assert set([g for g in instances['aws'].keys()]) == {'aogroup', 'hogroup'}
-    assert [n['name'] for n in instances['aws']['hogroup']] == ['1', 'a', 'b',
-                                                                'z']
+    assert [n['name'] for n in instances['aws']['hogroup']] == ['b', 'c',
+                                                                'a', 'd']
