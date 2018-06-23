@@ -162,7 +162,11 @@ venv.bak/
 .mypy_cache/
 
 # config
-/conf/*.yml
+/conf/aws/*.yml
 
 # iml
 *.iml
+
+# cache
+ec2-count
+ec2-instances

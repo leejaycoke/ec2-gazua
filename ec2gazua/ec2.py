@@ -9,12 +9,15 @@ from os.path import isfile
 from os.path import join
 from os.path import expanduser
 
-from .logger import console
 from . import utils
+from . import cache
+
+from .logger import console
+from .logger import log
 
 
 def get_config_files():
-    folder = utils.join_path(__file__, '../conf')
+    folder = utils.join_path(__file__, '../conf/aws')
     files = [join(folder, f) for f in listdir(folder) if f.endswith(".yml")]
     if len(files) == 0:
         raise IOError(
@@ -144,8 +147,7 @@ def clear_instance(instance, config):
     return instance
 
 
-def get_instances():
-    configs = get_configs()
+def load_instances_from_ec2(configs):
     instances = {}
 
     for name, config in sorted(configs.items(), key=lambda x: x[0]):
@@ -160,7 +162,8 @@ def get_instances():
                    for i in resp['Reservations']]
 
         name_sorted = sorted(cleared, key=lambda x: x['name'])
-        running_sorted = sorted(name_sorted, key=lambda x: x['is_running'], reverse=True)
+        running_sorted = sorted(name_sorted, key=lambda x: x['is_running'],
+                                reverse=True)
 
         groups = [i['group'] for i in running_sorted]
         for group in sorted(groups):
@@ -168,5 +171,23 @@ def get_instances():
 
         for i in running_sorted:
             instances[name][i['group']].append(i)
+
+    return instances
+
+
+def get_instances():
+    configs = get_configs()
+    cache_config = cache.get_config()
+
+    should_cache = cache.get_count() < cache_config[
+        'count'] and cache.has_instances()
+
+    if should_cache:
+        instances = cache.get_instances()
+        cache.increase_count()
+    else:
+        instances = load_instances_from_ec2(configs)
+        cache.put_instances(instances)
+        cache.reset_count()
 
     return instances

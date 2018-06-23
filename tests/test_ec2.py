@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from gz import ec2
+from ec2gazua import ec2
+from ec2gazua import cache
 
 mock_config_content = """
 ssh-path: /path/to
@@ -201,8 +202,20 @@ def test_sorting(monkeypatch):
     def get_describe_instances(_):
         return describe_instances_unsorted
 
+    def get_count():
+        return 10
+
+    def put_instances(_):
+        pass
+
+    def reset_count():
+        pass
+
     monkeypatch.setattr(ec2, 'read_config_files', read_config_files)
     monkeypatch.setattr(ec2, 'get_describe_instances', get_describe_instances)
+    monkeypatch.setattr(cache, 'get_count', get_count)
+    monkeypatch.setattr(cache, 'put_instances', put_instances)
+    monkeypatch.setattr(cache, 'reset_count', reset_count)
 
     instances = ec2.get_instances()
     assert set([g for g in instances['aws'].keys()]) == {'aogroup', 'hogroup'}
