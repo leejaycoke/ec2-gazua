@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from gazua import ec2
-
-import mock
+from gz import ec2
 
 mock_config_content = """
 ssh-path: /path/to
@@ -38,12 +36,14 @@ user:
 
 """
 
-mock_config = {'aws': mock_config_content}
 
+def test_get_configs(monkeypatch):
+    def read_config_files():
+        return {'aws': mock_config_content}
 
-@mock.patch('ec2.read_config_files', return_value=mock_config)
-def test_config(mocked_read_config_files):
+    monkeypatch.setattr(ec2, 'read_config_files', read_config_files)
     configs = ec2.get_configs()
+
     assert configs['aws']['credential']['aws_access_key_id'] == 'XXX1'
     assert configs['aws']['credential']['aws_secret_access_key'] == 'XXX2'
     assert configs['aws']['credential']['region'] == 'ap-northeast-2'
@@ -86,18 +86,25 @@ describe_instances = {
 }
 
 
-@mock.patch('ec2.read_config_files', return_value=mock_config)
-@mock.patch('ec2.get_describe_instances', return_value=describe_instances)
-def test_config(mocked_config_contents, mocked_instances):
+def test_config(monkeypatch):
+    def read_config_files():
+        return {'aws': mock_config_content}
+
+    def get_describe_instances(_):
+        return describe_instances
+
+    monkeypatch.setattr(ec2, 'read_config_files', read_config_files)
+    monkeypatch.setattr(ec2, 'get_describe_instances', get_describe_instances)
+
     instances = ec2.get_instances()
     assert instances['aws']['hogroup'][0]['id'] == 'i-hodolman'
     assert instances['aws']['hogroup'][0]['group'] == 'hogroup'
     assert instances['aws']['hogroup'][0]['name'] == 'honame'
-    assert instances['aws']['hogroup'][0]['is_running'] == True
+    assert instances['aws']['hogroup'][0]['is_running'] is True
     assert instances['aws']['hogroup'][0]['private_ip'] == '123.123.123.123'
     assert instances['aws']['hogroup'][0]['public_ip'] == '222.222.222.222'
     assert instances['aws']['hogroup'][0]['key_name'] == 'hodolkey'
-    assert instances['aws']['hogroup'][0]['key_file'] == None
+    assert instances['aws']['hogroup'][0]['key_file'] is None
     assert instances['aws']['hogroup'][0]['user'] == 'ec2-user'
 
 
@@ -187,9 +194,17 @@ describe_instances_unsorted = {
 }
 
 
-@mock.patch('ec2.read_config_files', return_value=mock_config)
-@mock.patch('ec2.get_describe_instances', return_value=describe_instances_unsorted)
-def test_sorting(mocked_config_contents, mocked_instances):
+def test_sorting(monkeypatch):
+    def read_config_files():
+        return {'aws': mock_config_content}
+
+    def get_describe_instances(_):
+        return describe_instances_unsorted
+
+    monkeypatch.setattr(ec2, 'read_config_files', read_config_files)
+    monkeypatch.setattr(ec2, 'get_describe_instances', get_describe_instances)
+
     instances = ec2.get_instances()
     assert set([g for g in instances['aws'].keys()]) == {'aogroup', 'hogroup'}
-    assert [n['name'] for n in instances['aws']['hogroup']] == ['1', 'a', 'b', 'z']
+    assert [n['name'] for n in instances['aws']['hogroup']] == ['1', 'a', 'b',
+                                                                'z']
