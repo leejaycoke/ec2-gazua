@@ -331,6 +331,7 @@ def key_pressed(key):
         raise urwid.ExitMainLoop()
 
 
-loop = MainLoop(wrapper, palette, handle_mouse=False,
-                unhandled_input=key_pressed)
-loop.run()
+def run():
+    loop = MainLoop(wrapper, palette, handle_mouse=False,
+                    unhandled_input=key_pressed)
+    loop.run()
