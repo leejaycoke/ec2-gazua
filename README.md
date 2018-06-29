@@ -28,7 +28,7 @@ $ python ec2-gz.py
 
 반드시 설정 파일을 만드셔야합니다.
 
-`./conf/aws.yml.example`파일을 ${파일명}.yml으로 복사하시기 바랍니다.
+`./conf/aws/aws.yml.example`파일을 ${파일명}.yml으로 복사하시기 바랍니다.
 
 ${파일명}은 ec2-gazua 화면의 제일 좌측 그룹핑에 사용됩니다.
 
