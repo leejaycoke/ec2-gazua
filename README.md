@@ -16,19 +16,12 @@ EC2 가즈아 ~~~!!는 tmux를 사용하여 여러 EC2 인스턴스에 ssh를 �
 
 ## 설치 (installation)
 
-```bash
-$ git clone https://github.com/leejaycoke/ec2-gazua.git
-$ cd ./ec2-gazua
-$ ./gz 
-```
-
-or
 
 ```bash
 $ git clone https://github.com/leejaycoke/ec2-gazua.git
 $ cd ./ec2-gazua
 $ pip install --user -r requirements.txt 
-$ python gazua.py
+$ python ec2-gz.py
 ```
 
 ## 설정 (configuration)
@@ -42,7 +35,7 @@ ${파일명}은 ec2-gazua 화면의 제일 좌측 그룹핑에 사용됩니다.
 여러개의 AWS계정을 사용한다면 여러개의 yml파일을 만들어보세요.
 
 ```bash
-$ cd ./conf
+$ cd ./conf/aws
 $ cp aws.yml.example aws.yml
 ```
 
