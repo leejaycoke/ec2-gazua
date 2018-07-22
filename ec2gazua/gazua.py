@@ -262,18 +262,21 @@ class Gazua(object):
         urwid.disconnect_signal(self.group_view.get_walker(), "modified",
                                 self.on_group_changed)
         aws_name = self.aws_view.get_selected_name()
-        self.group_view.update_widgets(list(self.manager[aws_name].keys()))
+        self.group_view.update_widgets(
+            list(self.manager.instances[aws_name].keys()))
         urwid.connect_signal(self.group_view.get_walker(), "modified",
                              self.on_group_changed)
 
         # instance
         group_name = self.group_view.get_selected_name()
-        self.instance_view.update_widgets(self.manager[aws_name][group_name])
+        self.instance_view.update_widgets(
+            self.manager.instances[aws_name][group_name])
 
     def on_group_changed(self):
         aws_name = self.aws_view.get_selected_name()
         group_name = self.group_view.get_selected_name()
-        self.instance_view.update_widgets(self.manager[aws_name][group_name])
+        self.instance_view.update_widgets(
+            self.manager.instances[aws_name][group_name])
         self.group_view.update_focus()
 
     def update_group_focus(self):
