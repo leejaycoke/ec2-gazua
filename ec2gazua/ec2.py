@@ -2,6 +2,8 @@
 
 import boto3
 
+from collections import OrderedDict
+
 from os.path import expanduser
 from os.path import isfile
 
@@ -12,13 +14,8 @@ from ec2gazua.logger import log
 
 class EC2InstanceManager(object):
     instances = {}
-    aws_names = set()
-    groups = set()
 
     def add_instance(self, aws_name, group, instance):
-        self.aws_names.add(aws_name)
-        self.groups.add(group)
-
         if aws_name not in self.instances:
             self.instances[aws_name] = {}
 
@@ -26,6 +23,26 @@ class EC2InstanceManager(object):
             self.instances[aws_name][group] = []
 
         self.instances[aws_name][group].append(instance)
+
+    @property
+    def aws_names(self):
+        return self.instances.keys()
+
+    def sort(self):
+        sorted_instances = OrderedDict()
+
+        for aws_name, groups in OrderedDict(
+                sorted(self.instances.iteritems(),
+                       key=lambda x: x[0])).items():
+
+            sorted_instances[aws_name] = {}
+
+            for group, instances in OrderedDict(
+                    sorted(groups.iteritems(), key=lambda x: x[0])).items():
+                instances.sort(key=lambda x: x.name)
+                sorted_instances[aws_name][group] = instances
+
+        self.instances = sorted_instances
 
 
 class EC2InstanceLoader(object):
@@ -52,8 +69,15 @@ class EC2InstanceLoader(object):
 
             for aws_instance in aws_instances:
                 ec2_instance = EC2Instance(self.config[aws_name], aws_instance)
+
+                if self.config[aws_name]['filter'][
+                    'connectable'] and not ec2_instance.is_connectable:
+                    continue
+
                 manager.add_instance(aws_name, ec2_instance.group,
                                      ec2_instance)
+
+        manager.sort()
 
         return manager
 
@@ -79,7 +103,7 @@ class EC2Instance(object):
     def name(self):
         if self.config['name-tag'] in self.tags:
             return self.tags[self.config['name-tag']]
-        return self.DEFAULT_NAME
+        return self.id
 
     @property
     def group(self):

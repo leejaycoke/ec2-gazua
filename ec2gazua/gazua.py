@@ -20,6 +20,8 @@ from .widget import ClippedText
 from . import ec2
 from . import tmux
 
+from logger import console
+
 
 class Footer(object):
 
@@ -229,6 +231,10 @@ class Gazua(object):
     def __init__(self):
         loader = ec2.EC2InstanceLoader()
         self.manager = loader.load_all()
+        if len(self.manager.instances) == 0:
+            console('There is no instances')
+            exit(1)
+
         self._init_views()
 
     def _init_views(self):
