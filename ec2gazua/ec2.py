@@ -1,193 +1,169 @@
 # -*- coding: utf-8 -*-
 
-import collections
 import boto3
-import yaml
 
-from os import listdir
-from os.path import isfile
-from os.path import join
 from os.path import expanduser
+from os.path import isfile
 
-from . import utils
-from . import cache
-
-from .logger import console
-from .logger import log
-
-
-def get_config_files():
-    folder = utils.join_path(__file__, '../conf/aws')
-    files = [join(folder, f) for f in listdir(folder) if f.endswith(".yml")]
-    if len(files) == 0:
-        raise IOError(
-            "Config file not found. please create file 'cp ./conf/aws.yml.example to ./conf/aws.yml'")
-    return files
+from ec2gazua.config import Config
+from ec2gazua.logger import console
+from ec2gazua.logger import log
 
 
-def read_config_files():
-    contents = {}
-    for config_file in get_config_files():
-        aws_name = config_file.rsplit('/', 1)[1].rsplit('.', 1)[
-            0]  # /path/conf/aws.yml -> aws
-        with open(config_file) as fp:
-            contents[aws_name] = fp.read()
-    return contents
-
-
-def get_configs():
-    contents = read_config_files()
-    configs = {}
-
-    for aws_name, content in contents.items():
-        configs[aws_name] = yaml.load(content)
-    return configs
-
-
-def create_connection(access_key_id, secret_access_key, region):
-    session = boto3.session.Session(
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
-        region_name=region)
-    return session.client('ec2')
-
-
-def get_describe_instances(config):
-    args = [config['credential']['aws_access_key_id'],
-            config['credential']['aws_secret_access_key'],
-            config['credential']['region']]
-    client = create_connection(*args)
-    return client.describe_instances()
-
-
-def get_key_file(filename):
-    filepath = expanduser(filename)
-    if isfile(filepath):
-        return filepath
-    elif isfile(filepath + '.pem'):
-        return filepath + '.pem'
-    else:
-        return None
-
-
-def override_ip(instance, config):
-    for group_name, ip_type in config.get('group', {}).items():
-        if group_name in instance['group']:
-            instance['connect_ip'] = ip_type
-
-    for group_name, ip_type in config.get('name', {}).items():
-        if group_name in instance['name']:
-            instance['connect_ip'] = ip_type
-
-    return instance
-
-
-def override_key_file(instance, ssh_path, config):
-    for group_name, key_file in config.get('group', {}).items():
-        if group_name in instance['group']:
-            instance['key_file'] = ssh_path + key_file
-            instance['key_name'] = key_file
-
-    for group_name, key_file in config.get('name', {}).items():
-        if group_name in instance['name']:
-            instance['key_file'] = ssh_path + key_file
-            instance['key_name'] = key_file
-
-    return instance
-
-
-def override_user(instance, config):
-    for group_name, user in config.get('group', {}).items():
-        if group_name in instance['group']:
-            instance['user'] = user
-
-    for group_name, user in config.get('name', {}).items():
-        if group_name in instance['name']:
-            instance['user'] = user
-
-    return instance
-
-
-def clear_tags(tags):
-    return {t['Key']: t['Value'] for t in tags if t['Value'] != ''}
-
-
-def clear_instance(instance, config):
-    tags = clear_tags(instance.get('Tags', []))
-
-    instance = {
-        'id': instance['InstanceId'],
-        'name': tags.get(config['name-tag'], '!-UNKNOWN_NAME'),
-        'group': tags.get(config['group-tag'], '!-UNKNOWN_GROUP'),
-        'type': instance['InstanceType'],
-        'key_name': instance.get('KeyName', '?'),
-        'private_ip': instance.get('PrivateIpAddress', '?'),
-        'public_ip': instance.get('PublicIpAddress', '?'),
-        'is_running': instance['State']['Name'] == 'running',
-        'tags': tags,
-        'user': config['user']['default']
-    }
-
-    instance['connect_ip'] = instance['private_ip'] if config['connect-ip'][
-                                                           'default'] == 'private' \
-        else instance['public_ip']
-
-    if config['key-file']['default'] == 'auto':
-        instance['key_file'] = get_key_file(
-            config['ssh-path'] + '/' + instance['key_name'])
-    else:
-        instance['key_file'] = config['ssh-path'] + '/' + config['key-file'][
-            'default']
-
-    instance = override_ip(instance, config['connect-ip'])
-    instance = override_key_file(instance, config['ssh-path'],
-                                 config['key-file'])
-    instance = override_user(instance, config['user'])
-
-    return instance
-
-
-def load_instances_from_ec2(configs):
+class EC2InstanceManager(object):
     instances = {}
+    aws_names = set()
+    groups = set()
 
-    for name, config in sorted(configs.items(), key=lambda x: x[0]):
-        instances[name] = collections.OrderedDict()
+    def add_instance(self, aws_name, group, instance):
+        self.aws_names.add(aws_name)
+        self.groups.add(group)
 
-        console('Get instances from ec2 [%s]' % name)
-        resp = get_describe_instances(config)
-        if len(resp['Reservations']) == 0:
-            continue
+        if aws_name not in self.instances:
+            self.instances[aws_name] = {}
 
-        cleared = [clear_instance(i['Instances'][0], config) \
-                   for i in resp['Reservations']]
+        if group not in self.instances[aws_name]:
+            self.instances[aws_name][group] = []
 
-        name_sorted = sorted(cleared, key=lambda x: x['name'])
-        running_sorted = sorted(name_sorted, key=lambda x: x['is_running'],
-                                reverse=True)
-
-        groups = [i['group'] for i in running_sorted]
-        for group in sorted(groups):
-            instances[name][group] = []
-
-        for i in running_sorted:
-            instances[name][i['group']].append(i)
-
-    return instances
+        self.instances[aws_name][group].append(instance)
 
 
-def get_instances():
-    configs = get_configs()
-    cache_config = cache.get_config()
+class EC2InstanceLoader(object):
+    config = Config()
 
-    should_cache = cache.get_count() < cache_config[
-        'count'] and cache.has_instances()
+    def _request_instances(self, aws_name):
+        credential = self.config[aws_name]['credential']
+        session = boto3.Session(
+            aws_access_key_id=credential['aws_access_key_id'],
+            aws_secret_access_key=credential['aws_secret_access_key'],
+            region_name=credential['region'])
 
-    if should_cache:
-        instances = cache.get_instances()
-        cache.increase_count()
-    else:
-        instances = load_instances_from_ec2(configs)
-        cache.put_instances(instances)
-        cache.reset_count()
+        client = session.client('ec2')
 
-    return instances
+        return [i['Instances'][0] for i in
+                client.describe_instances()['Reservations']]
+
+    def load_all(self):
+        manager = EC2InstanceManager()
+
+        for aws_name, item in self.config.items():
+            console('Instance loading [%s]' % aws_name)
+            aws_instances = self._request_instances(aws_name)
+
+            for aws_instance in aws_instances:
+                ec2_instance = EC2Instance(self.config[aws_name], aws_instance)
+                manager.add_instance(aws_name, ec2_instance.group,
+                                     ec2_instance)
+
+        return manager
+
+
+class EC2Instance(object):
+    DEFAULT_NAME = "UNKNOWN-NAME"
+    DEFAULT_GROUP = "UNKNOWN-GROUP"
+
+    def __init__(self, config, instance):
+        self.config = config
+        self.instance = instance
+
+    @property
+    def tags(self):
+        return {t['Key']: t['Value'] for t in self.instance.get('Tags', {}) if
+                t['Value'] != ''}
+
+    @property
+    def id(self):
+        return self.instance['InstanceId']
+
+    @property
+    def name(self):
+        if self.config['name-tag'] in self.tags:
+            return self.tags[self.config['name-tag']]
+        return self.DEFAULT_NAME
+
+    @property
+    def group(self):
+        if self.config['group-tag'] in self.tags:
+            return self.tags[self.config['group-tag']]
+        return self.DEFAULT_GROUP
+
+    @property
+    def type(self):
+        return self.instance['InstanceType']
+
+    @property
+    def key_name(self):
+        option = self.config['key-file']['default']
+        key_name = self.instance.get('KeyName') if option == 'auto' else option
+        override = self.config['key-file']
+        for group, value in override.get('group', {}).items():
+            if group in self.group:
+                key_name = value
+        for name, value in override.get('name', {}).items():
+            if name in self.name:
+                key_name = value
+        return key_name
+
+    @property
+    def key_file(self):
+        if self.key_name is None:
+            return None
+
+        key_file = self.config['ssh-path'] + '/' + self.key_name
+        key_path = expanduser(key_file)
+
+        if isfile(key_path):
+            return key_path
+
+        if key_path.endswith('.pem'):
+            raw_path = isfile(key_path.rsplit('.pem', 1)[0])
+            return raw_path if isfile(raw_path) else None
+
+        pem_path = key_path + '.pem'
+        return pem_path if isfile(pem_path) else None
+
+    @property
+    def private_ip(self):
+        return self.instance.get('PrivateIpAddress')
+
+    @property
+    def public_ip(self):
+        return self.instance.get('PublicIpAddress')
+
+    @property
+    def connect_ip(self):
+        ip_type = self.config['connect-ip']['default']
+        override = self.config['connect-ip']
+        for group, value in override.get('group', {}).items():
+            if group in self.group:
+                ip_type = value
+        for name, value in override.get('name', {}).items():
+            if name in self.name:
+                ip_type = value
+        return self.public_ip if ip_type == 'public' else self.private_ip
+
+    @property
+    def user(self):
+        user = self.config['user']['default']
+        override = self.config['user']
+        for group, value in override.get('group', {}).items():
+            if group in self.group:
+                user = value
+        for name, value in override.get('name', {}).items():
+            if name in self.name:
+                user = value
+        return user
+
+    @property
+    def has_key_file(self):
+        return self.key_file is not None
+
+    @property
+    def is_running(self):
+        log.info(self.instance['State'])
+        return self.instance['State']['Name'] == 'running'
+
+    @property
+    def is_connectable(self):
+        return self.is_running and self.has_key_file and \
+               self.connect_ip is not None
