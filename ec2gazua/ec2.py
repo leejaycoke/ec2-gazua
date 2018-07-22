@@ -7,6 +7,7 @@ from os.path import isfile
 
 from ec2gazua.config import Config
 from ec2gazua.logger import console
+from ec2gazua.logger import log
 
 
 class EC2InstanceManager(object):
@@ -106,7 +107,8 @@ class EC2Instance(object):
     @property
     def key_file(self):
         if self.key_name is not None:
-            return self.config['ssh-path'] + self.key_name
+            slash = '/' if not self.config['ssh-path'].endswith('/') else ''
+            return self.config['ssh-path'] + slash + self.key_name
 
     @property
     def private_ip(self):
@@ -149,12 +151,13 @@ class EC2Instance(object):
         key_path = expanduser(key_file)
         if isfile(key_path):
             return True
-        if key_path.lower().endswith('.pem'):
+        if key_path.endswith('.pem'):
             return isfile(key_path.rsplit('.pem', 1)[0])
         return isfile(key_path + '.pem')
 
     @property
     def is_running(self):
+        log.info(self.instance['State'])
         return self.instance['State']['Name'] == 'running'
 
     @property
