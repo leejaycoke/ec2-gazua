@@ -190,7 +190,7 @@ class InstanceView(object):
             (15, ClippedText(instance.public_ip or '-')),
             (15, ClippedText(instance.type[:15])),
             (3, ClippedText('O' if instance.is_running else 'X')),
-            ClippedText(instance.key_name),
+            ClippedText(instance.key_name or '-'),
         ]
 
         columns_widget = Columns(widgets, dividechars=1)
