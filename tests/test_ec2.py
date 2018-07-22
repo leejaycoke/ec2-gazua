@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from os.path import expanduser
+
 from ec2gazua.ec2 import EC2Instance
 
 
@@ -21,8 +23,8 @@ def test_ec2_instance_name():
 
 
 def test_ec2_instance_default_name():
-    instance = EC2Instance({'name-tag': 'Name'}, {})
-    assert instance.name == EC2Instance.DEFAULT_NAME
+    instance = EC2Instance({'name-tag': 'Name'}, {'InstanceId': 'asdf1234'})
+    assert instance.name == 'asdf1234'
 
 
 def test_ec2_instance_group():
@@ -93,13 +95,15 @@ def test_ec2_instance_key_file_follow_key_name():
     instance = EC2Instance(
         {
             'key-file': {'default': 'hodolman.pem'},
-            'ssh-path': '~/.ssh/'
+            'ssh-path': '~/.ssh'
         },
         {
             'KeyName': 'super-secret.pem'
         }
     )
-    assert instance.key_file == '~/.ssh/hodolman.pem'
+
+    ssh_path = expanduser('~') + '/.ssh'
+    assert instance.key_file == ssh_path + '/hodolman.pem'
 
 
 def test_ec2_instance_private_ip():
