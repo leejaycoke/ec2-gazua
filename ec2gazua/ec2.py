@@ -106,9 +106,21 @@ class EC2Instance(object):
 
     @property
     def key_file(self):
-        if self.key_name is not None:
-            slash = '/' if not self.config['ssh-path'].endswith('/') else ''
-            return self.config['ssh-path'] + slash + self.key_name
+        if self.key_name is None:
+            return None
+
+        key_file = self.config['ssh-path'] + '/' + self.key_name
+        key_path = expanduser(key_file)
+
+        if isfile(key_path):
+            return key_path
+
+        if key_path.endswith('.pem'):
+            raw_path = isfile(key_path.rsplit('.pem', 1)[0])
+            return raw_path if isfile(raw_path) else None
+
+        pem_path = key_path + '.pem'
+        return pem_path if isfile(pem_path) else None
 
     @property
     def private_ip(self):
@@ -144,16 +156,7 @@ class EC2Instance(object):
 
     @property
     def has_key_file(self):
-        key_file = self.key_file
-        if key_file is None:
-            return False
-
-        key_path = expanduser(key_file)
-        if isfile(key_path):
-            return True
-        if key_path.endswith('.pem'):
-            return isfile(key_path.rsplit('.pem', 1)[0])
-        return isfile(key_path + '.pem')
+        return self.key_file is not None
 
     @property
     def is_running(self):
