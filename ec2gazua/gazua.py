@@ -178,28 +178,26 @@ class InstanceView(object):
         return [self._create_widget(i) for i in self.instances]
 
     def _create_widget(self, instance):
-        is_checkable = instance['is_running'] and instance['key_file']
         widgets = [
             (25, SSHCheckBox(
-                instance['name'][:21],
-                is_checkable,
+                instance.name[:21],
+                instance.is_connectable,
                 self._run_tmux,
                 self.not_checkable_callback,
                 on_state_change=self.instance_check_changed,
                 user_data=instance)),
-            (15, ClippedText(instance['private_ip'])),
-            (15, ClippedText(instance['public_ip'])),
-            (15, ClippedText(instance['type'][:15])),
-            (3, ClippedText('O' if instance['is_running'] else 'X')),
-            ClippedText(instance['key_name']),
+            (15, ClippedText(instance.private_ip or '-')),
+            (15, ClippedText(instance.public_ip or '-')),
+            (15, ClippedText(instance.type[:15])),
+            (3, ClippedText('O' if instance.is_running else 'X')),
+            ClippedText(instance.key_name),
         ]
 
         columns_widget = Columns(widgets, dividechars=1)
         return AttrMap(columns_widget, None, 'instance_focus')
 
     def not_checkable_callback(self, instance_name):
-        footer.set_text(
-            'warning: the instance %s is not running' % instance_name)
+        footer.set_text("Instance '%s' is not connectable" % instance_name)
 
     def instance_check_changed(self, widget, state, instance):
         if state:
@@ -220,28 +218,29 @@ class InstanceView(object):
 
     def _create_tmux_param(self, instance):
         return {
-            'ip_address': instance['connect_ip'],
-            'key_file': instance['key_file'],
-            'user': instance['user']
+            'ip_address': instance.connect_ip,
+            'key_file': instance.key_file,
+            'user': instance.user,
         }
 
 
 class Gazua(object):
 
     def __init__(self):
-        self.instances = ec2.get_instances()
+        loader = ec2.EC2InstanceLoader()
+        self.manager = loader.load_all()
         self._init_views()
 
     def _init_views(self):
-        aws_names = list(self.instances.keys())
+        aws_names = list(self.manager.aws_names)
         self.aws_view = AWSView(aws_names)
 
         aws_name = self.aws_view.get_selected_name()
-        group_names = list(self.instances[aws_name].keys())
+        group_names = list(self.manager.instances[aws_name].keys())
         self.group_view = GroupView(group_names)
 
         group_name = self.group_view.get_selected_name()
-        init_instances = self.instances[aws_name][group_name]
+        init_instances = self.manager.instances[aws_name][group_name]
         self.instance_view = InstanceView(init_instances)
 
         urwid.connect_signal(self.aws_view.get_walker(), "modified",
@@ -263,18 +262,18 @@ class Gazua(object):
         urwid.disconnect_signal(self.group_view.get_walker(), "modified",
                                 self.on_group_changed)
         aws_name = self.aws_view.get_selected_name()
-        self.group_view.update_widgets(list(self.instances[aws_name].keys()))
+        self.group_view.update_widgets(list(self.manager[aws_name].keys()))
         urwid.connect_signal(self.group_view.get_walker(), "modified",
                              self.on_group_changed)
 
         # instance
         group_name = self.group_view.get_selected_name()
-        self.instance_view.update_widgets(self.instances[aws_name][group_name])
+        self.instance_view.update_widgets(self.manager[aws_name][group_name])
 
     def on_group_changed(self):
         aws_name = self.aws_view.get_selected_name()
         group_name = self.group_view.get_selected_name()
-        self.instance_view.update_widgets(self.instances[aws_name][group_name])
+        self.instance_view.update_widgets(self.manager[aws_name][group_name])
         self.group_view.update_focus()
 
     def update_group_focus(self):
