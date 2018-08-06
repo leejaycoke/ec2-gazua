@@ -1,0 +1,35 @@
+name: my-aws
+
+ssh-path: ~/.ssh
+
+credential:
+    aws_access_key_id: xxx
+    aws_secret_access_key: xxx
+    region: ap-northeast-2
+
+group-tag: Group
+name-tag: Name
+
+filter:
+    connectable: false
+
+connect-ip:
+    default: public
+    group:
+      test1: private
+    name:
+      test2: private
+
+key-file:
+    default: auto
+    group:
+        test1: test_rsa1
+    name:
+        test2: test_rsa2
+
+user:
+    default: ec2-user
+    group:
+        test1: centos
+    name:
+        test2: leejuhyun
