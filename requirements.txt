@@ -3,5 +3,5 @@ pytest==3.4.2
 boto3==1.6.11
 mock==2.0.0
 pytest==3.4.2
-PyYAML==3.12
+PyYAML==4.2b1
 pytest-cov==2.5.1
