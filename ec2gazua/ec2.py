@@ -140,8 +140,7 @@ class EC2Instance(object):
             return key_path
 
         if key_path.endswith('.pem'):
-            raw_path = isfile(key_path.rsplit('.pem', 1)[0])
-            return raw_path if isfile(raw_path) else None
+            return key_path if isfile(key_path) else None
 
         pem_path = key_path + '.pem'
         return pem_path if isfile(pem_path) else None
