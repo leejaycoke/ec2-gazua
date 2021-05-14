@@ -32,13 +32,13 @@ class EC2InstanceManager(object):
         sorted_instances = OrderedDict()
 
         for aws_name, groups in OrderedDict(
-                sorted(self.instances.iteritems(),
+                sorted(self.instances.items(),
                        key=lambda x: x[0])).items():
 
             sorted_instances[aws_name] = {}
 
             for group, instances in OrderedDict(
-                    sorted(groups.iteritems(), key=lambda x: x[0])).items():
+                    sorted(groups.items(), key=lambda x: x[0])).items():
                 instances.sort(key=lambda x: x.name)
                 sorted_instances[aws_name][group] = instances
 
