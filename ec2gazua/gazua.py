@@ -20,7 +20,7 @@ from .widget import ClippedText
 from . import ec2
 from . import tmux
 
-from logger import console
+from .logger import console
 
 
 class Footer(object):
