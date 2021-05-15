@@ -31,7 +31,7 @@ class Config(object):
 
         configs = {}
 
-        for data in yaml.load_all(content):
+        for data in yaml.safe_load_all(content):
             if data['name'] in configs:
                 raise ValueError(
                     '%s is duplicated name in config' % data['name'])
