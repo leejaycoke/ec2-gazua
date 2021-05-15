@@ -1,6 +1,6 @@
 # EC2 Gazua
 
-[ec2-gazua](https://github.com/leejacyoke/ec2-gazua) 는 AWS EC2에 쉽게 접속하기 위하여 만들어진 SSH툴 입니다.  
+[ec2-gazua](https://github.com/leejaycoke/ec2-gazua) 는 AWS EC2에 쉽게 접속하기 위하여 만들어진 SSH툴 입니다.  
 AWS EB, Auto scaling등의 환경에서 잦은 IP주소 변경으로 인하여 서버 접근이 괴로운 인간을 돕기위해 만들어졌습니다.
 
 ![screenshot](./image/tty.gif)
@@ -27,9 +27,11 @@ $ pip install --user -r requirements.txt
 $ python ec2_gz.py
 ```
 
-## 설정 (configuration)
+## 필수 설정 (configuration)
 
-1. `ec2-gz.sample`파일을 ~/.ec2-gz로 복사하시고 편집하세요.
+`ec2-gz.sample`파일을 ~/.ec2-gz로 복사하시고 편집하세요.
+
+## 설정 (configuration)
 
 `name`은 화면의 제일 왼쪽 그룹에 사용됩니다. AWS 계정이 여러개인 경우 yml문법에 맞게 `---`을 추가하여 사용할 수 있습니다.
 
@@ -124,7 +126,7 @@ user:
 
 여러개의 AWS계정을 사용하는 경우 `.ec2-gz`파일 하나에서 아래와 같이 관리할 수 있습니다.
 
-```
+```yml
 name: my-aws1
 생략
 생략
