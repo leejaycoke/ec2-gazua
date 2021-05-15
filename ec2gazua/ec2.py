@@ -73,7 +73,7 @@ class EC2InstanceLoader(object):
                 ec2_instance = EC2Instance(self.config[aws_name], aws_instance)
 
                 if self.config[aws_name]['filter'][
-                        'connectable'] and not ec2_instance.is_connectable:
+                    'connectable'] and not ec2_instance.is_connectable:
                     continue
 
                 manager.add_instance(aws_name, ec2_instance.group,
@@ -191,4 +191,4 @@ class EC2Instance(object):
     @property
     def is_connectable(self):
         return self.is_running and self.has_key_file and \
-            self.connect_ip is not None
+               self.connect_ip is not None
