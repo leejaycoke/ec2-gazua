@@ -91,21 +91,6 @@ def test_ec2_instance_key_name_override_nametag():
     assert instance.key_name == 'high-secret.pem'
 
 
-def test_ec2_instance_key_file_follow_key_name():
-    instance = EC2Instance(
-        {
-            'key-file': {'default': 'hodolman.pem'},
-            'ssh-path': '~/.ssh'
-        },
-        {
-            'KeyName': 'super-secret.pem'
-        }
-    )
-
-    ssh_path = expanduser('~') + '/.ssh'
-    assert instance.key_file == ssh_path + '/hodolman.pem'
-
-
 def test_ec2_instance_private_ip():
     instance = EC2Instance(
         {},
