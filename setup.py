@@ -5,9 +5,6 @@ from setuptools import setup, find_packages
 with open("requirements.txt") as fp:
     requirements = [line.strip() for line in fp.readlines()]
 
-with open('README.md') as f:
-    readme = f.read()
-
 with open('LICENSE') as f:
     mit_license = f.read()
 
@@ -18,7 +15,6 @@ setup(
     author='leejaycoke',
     author_email='leejaycoke@gmail.com',
     url='https://github.com/leejaycoke/ec2-gazua',
-    long_description=readme,
     license=mit_license,
     install_requires=requirements,
     packages=find_packages(include=['ec2gazua'], exclude=['tests', 'image']),
