@@ -17,7 +17,7 @@ setup(
     url='https://github.com/leejaycoke/ec2-gazua',
     license=mit_license,
     install_requires=requirements,
-    packages=find_packages(include=['ec2gazua'], exclude=['tests', 'image']),
+    packages=find_packages(includ=['ec2gazua'], exclude=['tests', 'image']),
     py_modules=['ec2_gz'],
     keywords=['ec2 ssh'],
     python_requires='>=3.7',
