@@ -10,7 +10,7 @@ with open('LICENSE') as f:
 
 setup(
     name='ec2-gazua',
-    version='0.1.0',
+    version='0.2.0',
     description='Easy accessing EC2 SSH through tmux',
     author='leejaycoke',
     author_email='leejaycoke@gmail.com',
