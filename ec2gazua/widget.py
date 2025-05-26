@@ -16,13 +16,6 @@ class ClippedText(Text):
         super(ClippedText, self).__init__(*args, wrap='clip', **kwargs)
 
 
-class SearchEdit(AttrMap):
-
-    def __init__(self):
-        edit = Edit('Search: ')
-        super(SearchEdit, self).__init__(edit, 'header')
-
-
 class SelectableText(Text):
 
     def __init__(self, markup, *args, **kwargs):
@@ -65,11 +58,8 @@ class GazuaFrame(Frame):
     column_pos = 0
 
     def __init__(self, *args, **kwargs):
-        self.search_edit = Edit('Search: ')
         self.arrow_callback = kwargs['arrow_callback']
-        super(GazuaFrame, self).__init__(*args,
-                                         header=AttrMap(self.search_edit,
-                                                        'header'))
+        super(GazuaFrame, self).__init__(*args)
 
     def keypress(self, size, key):
         if len(key) == 1 and key.isalpha:
